@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#2c3c4d">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Kalkulator">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>:root{color-scheme:light;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Kalkulator Saku</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: satu kolom setinggi layar. Pelat nama dan layar LCD di atas, tombol 4x5 di bawah.
+   Brankas menggantikan seluruh layar kalkulator dan memakai warna yang lebih tenang. */
+:root{
+  --bg:#d3d8dc;
+  --lcd:#c5d0b8; --lcd-ink:#1d2a1b; --lcd-dim:#55654f;
+  --key:#f5f6f7; --key-ink:#1b2127; --key-edge:#a9b1b8;
+  --fn:#c3c9ce; --fn-ink:#1b2127;
+  --op:#2c3c4d; --op-ink:#f2f5f7; --op-edge:#162029;
+  --eq:#e0561d; --eq-ink:#ffffff; --eq-edge:#9c3a10;
+  --vbg:#eceff1; --vink:#161b20; --vdim:#59646d; --vline:#c9d0d5; --vfield:#ffffff; --warn:#a8400f;
+  --mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+  --ui:'Figtree',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e1215;
+    --lcd:#0f1d14; --lcd-ink:#7ff0a0; --lcd-dim:#4a9a63;
+    --key:#262d34; --key-ink:#e9edf0; --key-edge:#0b0e11;
+    --fn:#38414a; --fn-ink:#e9edf0;
+    --op:#3d566d; --op-ink:#f2f5f7; --op-edge:#1b2733;
+    --eq:#ff7a3d; --eq-ink:#1a0e06; --eq-edge:#a8481b;
+    --vbg:#10151a; --vink:#e8ecef; --vdim:#93a0aa; --vline:#2a343d; --vfield:#192027; --warn:#ffa070;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e1215;
+  --lcd:#0f1d14; --lcd-ink:#7ff0a0; --lcd-dim:#4a9a63;
+  --key:#262d34; --key-ink:#e9edf0; --key-edge:#0b0e11;
+  --fn:#38414a; --fn-ink:#e9edf0;
+  --op:#3d566d; --op-ink:#f2f5f7; --op-edge:#1b2733;
+  --eq:#ff7a3d; --eq-ink:#1a0e06; --eq-edge:#a8481b;
+  --vbg:#10151a; --vink:#e8ecef; --vdim:#93a0aa; --vline:#2a343d; --vfield:#192027; --warn:#ffa070;
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--bg); color:var(--key-ink); font-family:var(--ui);
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  -webkit-tap-highlight-color:transparent;
+}
+body.in-vault{background:var(--vbg);color:var(--vink)}
+button{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--eq);outline-offset:2px}
+
+/* Kalkulator */
+.calc{height:100%;max-width:420px;margin:0 auto;padding-block:16px;display:flex;flex-direction:column;gap:14px}
+.plate{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 4px}
+.plate b{font:700 12px/1 var(--ui);letter-spacing:.28em;text-transform:uppercase;color:var(--vdim)}
+.solar{width:88px;height:14px;border-radius:3px;opacity:.85;background:repeating-linear-gradient(90deg,var(--op) 0 20px,var(--bg) 20px 22px)}
+.lcd{
+  min-height:136px; display:flex; flex-direction:column; justify-content:flex-end; gap:4px;
+  background:var(--lcd); border-radius:12px; padding:14px 16px 12px; overflow:hidden;
+  box-shadow:inset 0 2px 7px rgba(0,0,0,.28);
+}
+.expr{font:500 16px/1.3 var(--mono);color:var(--lcd-dim);min-height:21px;white-space:nowrap;overflow-x:hidden;text-align:right}
+.res{font:500 46px/1.1 var(--mono);color:var(--lcd-ink);text-align:right;white-space:nowrap;overflow-x:hidden;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.res.sm{font-size:34px}
+.res.xs{font-size:26px}
+.keys{flex:1;min-height:0;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(5,minmax(0,1fr));gap:10px}
+.keys button{
+  --edge:var(--key-edge);
+  border:0;border-radius:14px;background:var(--key);color:var(--key-ink);
+  font:500 26px/1 var(--mono);box-shadow:0 3px 0 var(--edge);cursor:pointer;touch-action:manipulation;
+  transition:transform .06s,box-shadow .06s;
+}
+.keys button:active{transform:translateY(3px);box-shadow:0 0 0 var(--edge)}
+.keys .fn{--edge:var(--key-edge);background:var(--fn);color:var(--fn-ink)}
+.keys .op{--edge:var(--op-edge);background:var(--op);color:var(--op-ink)}
+.keys .eq{--edge:var(--eq-edge);background:var(--eq);color:var(--eq-ink);font-weight:700}
+
+/* Brankas */
+.vault{height:100%;max-width:560px;margin:0 auto;display:flex;flex-direction:column;color:var(--vink)}
+.vbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:14px;border-bottom:1px solid var(--vline)}
+.vbar h1{margin:0;font:600 20px/1.2 var(--ui)}
+.lockbtn{min-height:44px;padding:0 18px;border:0;border-radius:10px;background:var(--op);color:var(--op-ink);font:600 15px/1 var(--ui);cursor:pointer}
+.vscroll{flex:1;min-height:0;overflow-y:auto;padding-block:16px 32px;display:flex;flex-direction:column;gap:22px}
+.warn{margin:0;color:var(--warn);font:600 14px/1.4 var(--ui)}
+.form{display:flex;flex-direction:column;gap:8px}
+.form label{font:600 13px/1.2 var(--ui);color:var(--vdim)}
+.form input,.form textarea{
+  width:100%;font:400 16px/1.4 var(--ui);padding:12px;color:var(--vink);
+  background:var(--vfield);border:1px solid var(--vline);border-radius:8px;
+}
+.form textarea{min-height:100px;resize:vertical}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.primary{min-height:46px;padding:0 18px;border:0;border-radius:10px;background:var(--eq);color:var(--eq-ink);font:700 15px/1 var(--ui);cursor:pointer}
+.ghost{min-height:40px;padding:0 14px;border:1px solid var(--vline);border-radius:8px;background:transparent;color:var(--vink);font:500 14px/1 var(--ui);cursor:pointer}
+.ghost.armed{border-color:var(--warn);color:var(--warn);font-weight:700}
+.notes{list-style:none;margin:0;padding:0}
+.note{display:grid;gap:6px;padding-block:14px;border-top:1px solid var(--vline);min-width:0}
+.note h2{margin:0;font:600 16px/1.3 var(--ui);overflow-wrap:anywhere}
+.note p{margin:0;font:400 15px/1.5 var(--ui);white-space:pre-wrap;overflow-wrap:anywhere}
+.meta{font:400 12px/1.3 var(--ui);color:var(--vdim)}
+.empty{padding-block:14px;border-top:1px solid var(--vline);color:var(--vdim);font:400 15px/1.5 var(--ui)}
+.setting summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font:600 15px/1 var(--ui)}
+.setting .form{padding-block:8px}
+.msg{margin:0;min-height:1.4em;font:500 14px/1.4 var(--ui);color:var(--vdim)}
+.foot{margin:0;font:400 12px/1.5 var(--ui);color:var(--vdim)}
+@media (prefers-reduced-motion: reduce){.keys button{transition:none}}
+</style>
+
+<main class="calc" id="calc">
+  <div class="plate"><b>Saku</b><i class="solar" aria-hidden="true"></i></div>
+  <section class="lcd" aria-live="polite">
+    <div class="expr" id="expr"></div>
+    <div class="res" id="res">0</div>
+  </section>
+  <div class="keys" id="keys">
+    <button class="fn" data-k="C" aria-label="Hapus semua">C</button>
+    <button class="fn" data-k="del" aria-label="Hapus satu angka">⌫</button>
+    <button class="fn" data-k="%" aria-label="Persen">%</button>
+    <button class="op" data-k="/" aria-label="Bagi">÷</button>
+    <button data-k="7">7</button>
+    <button data-k="8">8</button>
+    <button data-k="9">9</button>
+    <button class="op" data-k="*" aria-label="Kali">×</button>
+    <button data-k="4">4</button>
+    <button data-k="5">5</button>
+    <button data-k="6">6</button>
+    <button class="op" data-k="-" aria-label="Kurang">−</button>
+    <button data-k="1">1</button>
+    <button data-k="2">2</button>
+    <button data-k="3">3</button>
+    <button class="op" data-k="+" aria-label="Tambah">+</button>
+    <button class="fn" data-k="neg" aria-label="Ubah tanda">±</button>
+    <button data-k="0">0</button>
+    <button data-k="." aria-label="Koma">,</button>
+    <button class="eq" data-k="=" aria-label="Sama dengan">=</button>
+  </div>
+</main>
+
+<section class="vault" id="vault" aria-label="Catatan pribadi" hidden>
+  <header class="vbar">
+    <h1>Catatan pribadi</h1>
+    <button class="lockbtn" id="lock" type="button">Kunci</button>
+  </header>
+  <div class="vscroll">
+    <p class="warn" id="defaultWarn" hidden>Kode masih 1234. Ganti dengan kode Anda di bagian bawah.</p>
+
+    <form class="form" id="noteForm" autocomplete="off">
+      <label for="nt">Judul</label>
+      <input id="nt" type="text" maxlength="80" placeholder="Misalnya: Kata sandi wifi">
+      <label for="nb">Isi catatan</label>
+      <textarea id="nb" maxlength="5000" placeholder="Tulis di sini"></textarea>
+      <div class="row">
+        <button class="primary" id="saveBtn" type="submit">Simpan catatan</button>
+        <button class="ghost" id="cancelEdit" type="button" hidden>Batal ubah</button>
+      </div>
+    </form>
+
+    <ul class="notes" id="noteList"></ul>
+
+    <details class="setting" id="setting">
+      <summary>Ganti kode rahasia</summary>
+      <form class="form" id="codeForm" autocomplete="off">
+        <label for="nc">Kode baru (4 sampai 8 angka)</label>
+        <input id="nc" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="Contoh: 5802">
+        <div class="row"><button class="primary" type="submit">Simpan kode</button></div>
+        <p class="msg" id="codeMsg" role="status"></p>
+      </form>
+    </details>
+
+    <p class="foot">Catatan tersimpan di HP ini saja dan tidak dienkripsi. Brankas terkunci otomatis saat Anda meninggalkan aplikasi. Untuk membukanya, ketik kode di kalkulator lalu tekan =.</p>
+  </div>
+</section>
+
+<script>
+/*PURE-START*/
+function calcEval(s){
+  var i=0;
+  function num(){
+    var m=/^(\d+\.?\d*|\.\d+)/.exec(s.slice(i));
+    if(!m) throw new Error('x');
+    i+=m[0].length;
+    var v=parseFloat(m[0]);
+    while(s[i]==='%'){v/=100;i++}
+    return v;
+  }
+  function factor(){
+    if(s[i]==='-'){i++;return -factor()}
+    if(s[i]==='+'){i++;return factor()}
+    return num();
+  }
+  function term(){
+    var v=factor();
+    while(s[i]==='*'||s[i]==='/'){
+      var o=s[i++], r=factor();
+      if(o==='*') v*=r;
+      else { if(r===0) throw new Error('div0'); v/=r; }
+    }
+    return v;
+  }
+  function expr(){
+    var v=term();
+    while(s[i]==='+'||s[i]==='-'){
+      var o=s[i++], st=i, r=term();
+      if(/^\d*\.?\d+%$/.test(s.slice(st,i))) r=v*r;
+      v=o==='+'?v+r:v-r;
+    }
+    return v;
+  }
+  var v=expr();
+  if(i!==s.length) throw new Error('x');
+  return parseFloat(v.toPrecision(12));
+}
+function calcFmt(v){
+  if(!isFinite(v)) return 'Error';
+  var a=Math.abs(v);
+  if(a!==0&&(a>=1e12||a<1e-9)) return v.toExponential(6).replace(/\.?0+e/,'e').replace('.',',');
+  return v.toLocaleString('id-ID',{maximumFractionDigits:9});
+}
+/*PURE-END*/
+
+(function(){
+  var K_CODE='saku.kode', K_NOTES='saku.catatan', DEFAULT_CODE='1234';
+  function load(k){try{return localStorage.getItem(k)}catch(e){return null}}
+  function save(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+  function $(id){return document.getElementById(id)}
+
+  var code=load(K_CODE)||DEFAULT_CODE;
+  var notes=[];
+  var stored=load(K_NOTES);
+  if(stored===null){
+    notes=[{id:'contoh',t:'Catatan contoh',b:'Ini contoh isi brankas. Tulis catatan pribadi Anda di sini, lalu hapus yang ini.',d:Date.now()}];
+    save(K_NOTES,JSON.stringify(notes));
+  } else {
+    try{notes=JSON.parse(stored)}catch(e){notes=[]}
+    if(!Array.isArray(notes)) notes=[];
+  }
+
+  /* ---------- Kalkulator ---------- */
+  var exprEl=$('expr'), resEl=$('res'), calc=$('calc'), vault=$('vault');
+  var expr='', typed='', done=false, error=false, lastResult='0', lastRaw='';
+  var NUM_END=/(\d+\.?\d*|\.\d+)$/;
+
+  function preview(){
+    if(!expr) return '0';
+    var s=expr.replace(/[+\-*\/]+$/,'');
+    if(!s||s==='-') return '0';
+    try{return calcFmt(calcEval(s))}catch(e){return resEl.textContent||'0'}
+  }
+  function show(){
+    var disp=expr.replace(/\*/g,'×').replace(/\//g,'÷').replace(/-/g,'−').replace(/\./g,',');
+    if(done) disp+=' =';
+    exprEl.textContent=disp;
+    exprEl.scrollLeft=exprEl.scrollWidth;
+    resEl.textContent=error?'Error':(done?lastResult:preview());
+    var n=resEl.textContent.length;
+    resEl.className='res'+(n>14?' xs':n>9?' sm':'');
+  }
+  function clearCalc(){expr='';typed='';done=false;error=false;lastResult='0';lastRaw='';show()}
+
+  function startFromResult(){
+    if(done){done=false;expr=lastRaw}
+  }
+
+  function press(k){
+    try{navigator.vibrate&&navigator.vibrate(8)}catch(e){}
+    if(error){error=false;expr='';done=false;typed=''}
+
+    if(/^\d$/.test(k)){
+      if(done){expr='';done=false;typed=''}
+      typed+=k;
+      var m=NUM_END.exec(expr);
+      if(m&&m[0]==='0') expr=expr.slice(0,-1)+k;
+      else if(expr.slice(-1)!=='%') expr+=k;
+      return show();
+    }
+
+    if(k==='+'||k==='-'||k==='*'||k==='/'){
+      typed='';
+      startFromResult();
+      if(!expr){ if(k==='-') expr='-'; return show() }
+      if(expr==='-') return show();
+      var last=expr.slice(-1);
+      if('+-*/'.indexOf(last)>-1){
+        if(k==='-'&&(last==='*'||last==='/')) expr+=k;
+        else expr=expr.replace(/[+\-*\/]+$/,'')+k;
+      } else expr+=k;
+      return show();
+    }
+
+    if(k==='%'){
+      typed='';
+      startFromResult();
+      if(/\d$/.test(expr)) expr+='%';
+      return show();
+    }
+
+    if(k==='.'){
+      typed='';
+      if(done){expr='';done=false}
+      var m2=NUM_END.exec(expr);
+      if(m2){ if(m2[0].indexOf('.')>-1) return; expr+='.' }
+      else if(expr.slice(-1)==='%') return;
+      else expr+='0.';
+      return show();
+    }
+
+    if(k==='C'){clearCalc();return}
+
+    if(k==='del'){
+      if(done){clearCalc();return}
+      expr=expr.slice(0,-1);
+      typed=typed.slice(0,-1);
+      return show();
+    }
+
+    if(k==='neg'){
+      typed='';
+      startFromResult();
+      var m3=NUM_END.exec(expr);
+      if(!m3) return;
+      var i=m3.index, p=expr[i-1], pp=expr[i-2];
+      if(p==='-'&&(i===1||/[+\-*\/]/.test(pp))) expr=expr.slice(0,i-1)+expr.slice(i);
+      else expr=expr.slice(0,i)+'-'+expr.slice(i);
+      return show();
+    }
+
+    if(k==='='){
+      if(typed&&typed===code&&/^\d+$/.test(expr)&&expr===typed.replace(/^0+(?=\d)/,'')){
+        clearCalc();
+        openVault();
+        return;
+      }
+      typed='';
+      if(!expr||done) return show();
+      var s=expr.replace(/[+\-*\/]+$/,'');
+      if(!s||s==='-') return show();
+      try{
+        var v=calcEval(s);
+        if(!isFinite(v)) throw new Error('x');
+        lastResult=calcFmt(v);
+        lastRaw=Math.abs(v)>=1e21?'':v.toFixed(10).replace(/\.?0+$/,'');
+        if(lastRaw==='-0'||lastRaw==='') lastRaw=lastRaw==='-0'?'0':'';
+        done=true;
+      }catch(e){
+        error=true;expr='';
+      }
+      return show();
+    }
+  }
+
+  $('keys').addEventListener('click',function(e){
+    var b=e.target.closest('button');
+    if(b&&b.dataset.k) press(b.dataset.k);
+  });
+  document.addEventListener('keydown',function(e){
+    if(!vault.hidden||e.ctrlKey||e.metaKey||e.altKey) return;
+    var k=e.key, m=null;
+    if(/^\d$/.test(k)) m=k;
+    else if(k==='+'||k==='-'||k==='*'||k==='/') m=k;
+    else if(k==='x'||k==='X') m='*';
+    else if(k==='.'||k===',') m='.';
+    else if(k==='%') m='%';
+    else if(k==='Enter'||k==='=') m='=';
+    else if(k==='Backspace') m='del';
+    else if(k==='Escape'||k==='Delete') m='C';
+    if(m){e.preventDefault();press(m)}
+  });
+
+  /* ---------- Brankas ---------- */
+  var list=$('noteList'), nt=$('nt'), nb=$('nb'), saveBtn=$('saveBtn'), cancelBtn=$('cancelEdit');
+  var editId=null;
+
+  function persist(){save(K_NOTES,JSON.stringify(notes))}
+  function fmtDate(ts){
+    try{return new Date(ts).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'})}catch(e){return ''}
+  }
+  function mk(tag,cls,text){
+    var el=document.createElement(tag);
+    if(cls) el.className=cls;
+    if(text!==undefined) el.textContent=text;
+    return el;
+  }
+  function render(){
+    list.textContent='';
+    if(!notes.length){
+      list.appendChild(mk('li','empty','Belum ada catatan. Tulis yang pertama di atas.'));
+      return;
+    }
+    notes.forEach(function(n){
+      var li=mk('li','note');
+      li.appendChild(mk('h2','',n.t||'Tanpa judul'));
+      if(n.b) li.appendChild(mk('p','',n.b));
+      li.appendChild(mk('span','meta',fmtDate(n.d)));
+      var row=mk('div','row');
+      var edit=mk('button','ghost','Ubah'); edit.type='button';
+      edit.addEventListener('click',function(){beginEdit(n.id)});
+      var del=mk('button','ghost','Hapus'); del.type='button';
+      var timer=null;
+      del.addEventListener('click',function(){
+        if(del.classList.contains('armed')){
+          clearTimeout(timer);
+          notes=notes.filter(function(x){return x.id!==n.id});
+          if(editId===n.id) endEdit();
+          persist(); render();
+        } else {
+          del.classList.add('armed'); del.textContent='Yakin hapus?';
+          timer=setTimeout(function(){del.classList.remove('armed');del.textContent='Hapus'},3000);
+        }
+      });
+      row.appendChild(edit); row.appendChild(del);
+      li.appendChild(row);
+      list.appendChild(li);
+    });
+  }
+  function beginEdit(id){
+    var n=notes.filter(function(x){return x.id===id})[0];
+    if(!n) return;
+    editId=id; nt.value=n.t||''; nb.value=n.b||'';
+    saveBtn.textContent='Perbarui catatan'; cancelBtn.hidden=false;
+    nt.scrollIntoView({block:'center'}); nb.focus();
+  }
+  function endEdit(){
+    editId=null; nt.value=''; nb.value='';
+    saveBtn.textContent='Simpan catatan'; cancelBtn.hidden=true;
+  }
+  $('noteForm').addEventListener('submit',function(e){
+    e.preventDefault();
+    var t=nt.value.trim(), b=nb.value.trim();
+    if(!t&&!b) return;
+    if(editId){
+      notes.forEach(function(n){ if(n.id===editId){n.t=t;n.b=b;n.d=Date.now()} });
+    } else {
+      notes.unshift({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),t:t,b:b,d:Date.now()});
+    }
+    persist(); endEdit(); render();
+  });
+  cancelBtn.addEventListener('click',endEdit);
+
+  var codeMsg=$('codeMsg'), nc=$('nc');
+  function refreshWarn(){$('defaultWarn').hidden=(code!==DEFAULT_CODE)}
+  $('codeForm').addEventListener('submit',function(e){
+    e.preventDefault();
+    var v=nc.value.trim();
+    if(!/^\d{4,8}$/.test(v)){codeMsg.textContent='Kode harus 4 sampai 8 angka.';return}
+    code=v; save(K_CODE,code); nc.value='';
+    codeMsg.textContent='Kode diganti. Pakai kode baru untuk membuka brankas berikutnya.';
+    refreshWarn();
+  });
+
+  function openVault(){
+    calc.hidden=true; vault.hidden=false;
+    document.body.classList.add('in-vault');
+    refreshWarn(); render();
+    var sc=document.querySelector('.vscroll'); if(sc) sc.scrollTop=0;
+    $('lock').focus();
+  }
+  function lockVault(){
+    if(vault.hidden) return;
+    endEdit(); nc.value=''; codeMsg.textContent='';
+    $('setting').open=false;
+    vault.hidden=true; calc.hidden=false;
+    document.body.classList.remove('in-vault');
+    clearCalc();
+  }
+  $('lock').addEventListener('click',lockVault);
+  document.addEventListener('visibilitychange',function(){ if(document.hidden) lockVault() });
+
+  show();
+})();
+</script>
+
+<script>
+if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){
+  window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})});
+}
+</script>
+</body>
+</html>
